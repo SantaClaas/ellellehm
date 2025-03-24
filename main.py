@@ -5,7 +5,7 @@ from openai import OpenAI
 
 QUESTION = "What is the capital of France?"
 SYSTEM_PROMPT = "You are a helpful assistant that can answer quesions."
-MODEL = "gpt-4o"
+MODEL = "gpt-4o-mini"
 
 
 def main():
