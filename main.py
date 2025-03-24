@@ -29,8 +29,11 @@ def main():
 
     response = client.chat.completions.create(model=MODEL, messages=messages)
     text = response.choices[0].message.content
+    total_tokens = response.usage.total_tokens
     print("Response:", text)
-    print("Usage:", response.usage.total_tokens)
+    print("Usage:", total_tokens)
+    cents = total_tokens / 1e6 * 1.5 * 100
+    print("Cents:", cents)
     print("Completed ellellehm")
 
 
