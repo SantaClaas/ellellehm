@@ -30,6 +30,7 @@ def main():
     response = client.chat.completions.create(model=MODEL, messages=messages)
     text = response.choices[0].message.content
     print("Response:", text)
+    print("Usage:", response.usage.total_tokens)
     print("Completed ellellehm")
 
 
