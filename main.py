@@ -5,7 +5,7 @@ from openai import OpenAI
 AGENT_1_PROMPT = "You are Agent 1, a curious assistant who asks thoughtful questions."
 AGENT_2_PROMPT = "You are Agent 2, a knowledgeable assistant who provides detailed answers."
 MODEL = "gpt-4o-mini"
-CONVERSATION_TURNS = 5
+CONVERSATION_TURNS = 20
 
 
 class Agent:
@@ -39,19 +39,19 @@ def main():
 
     agent_1 = Agent(client)
     agent_2 = Agent(client)
+    agents = [agent_1, agent_2]
+
+    # Iterable that switches between 0 and 1 which to switch between agent 0 and 1
+    # to switch for each chat turn
+    agent_turn_indices = map(lambda turn_index: turn_index %
+                             len(agents), range(CONVERSATION_TURNS))
 
     # Ask initial question to get the chat rolling
     last_message = "How are you doing?"
-    print("[Agent 1]:", last_message)
-
-    last_message = agent_2.message(last_message)
-    print("[Agent 2]:", last_message)
-
-    last_message = agent_1.message(last_message)
-    print("[Agent 1]:", last_message)
-
-    last_message = agent_2.message(last_message)
-    print("[Agent 1]:", last_message)
+    for agent_index in agent_turn_indices:
+        current_agent = agents[agent_index]
+        last_message = current_agent.message(last_message)
+        print(f"[Agent {agent_index + 1}]: {last_message}")
 
     print("Conversation completed!")
 
