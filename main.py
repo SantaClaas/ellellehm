@@ -41,7 +41,7 @@ def main():
     agent_2 = Agent(client)
     agents = [agent_1, agent_2]
 
-    # Iterable that switches between 0 and 1 which to switch between agent 0 and 1
+    # Iterable that switches between 0 and 1 to switch between agent 0 and 1
     # to switch for each chat turn
     agent_turn_indices = map(lambda turn_index: turn_index %
                              len(agents), range(CONVERSATION_TURNS))

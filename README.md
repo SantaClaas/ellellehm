@@ -1,0 +1,1 @@
+`uv run main.py` to run in dev container
