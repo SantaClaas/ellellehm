@@ -1,30 +1,59 @@
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
+from openai.types.chat import ChatCompletionToolParam
 
 AGENT_1_PROMPT = "You are Agent 1, a curious assistant who asks thoughtful questions."
 AGENT_2_PROMPT = "You are Agent 2, a knowledgeable assistant who provides detailed answers."
-MODEL = "gpt-4o-mini"
+MODEL = "gpt-4.1"
 CONVERSATION_TURNS = 20
 
 
 class Agent:
-    def __init__(self, client):
+    def __init__(self, client: OpenAI, message: str):
         self.client = client
         # Instruct the character
         self.history = [
             {
                 "role": "system",
-                "content": "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues"
+                "content": message
             },
         ]
 
     def message(self, message: str) -> str:
         self.history.append({"role": "user", "content": message})
+
+        tool = ChatCompletionToolParam({
+            "type": "function",
+            "function": {
+                "name": "respond",
+                "description": "This function is used to create the response of the agent. A response consists of the internal inner thoughts and the response that should be spoken and received by the chat partner",
+                "parameters": {
+                    "properties": {
+                        "inner_thoughts": {
+                            "type": "string",
+                            "description": "The inner thoughts of the agent that the agent has and helped form the response"
+                        },
+                        "utterance": {
+                            "type": "string",
+                            "description": "The spoken words by the agent that were formed using the inner thoughts"
+                        },
+                    },
+                    "required": [
+                        "inner_thoguhts",
+                        "utterance"
+                    ],
+                    "additionalProperties": False
+                },
+                "strict": True,
+            },
+        })
         response = self.client.chat.completions.create(
             model=MODEL,
-            messages=self.history
+            messages=self.history,
+            tools=[tool]
         )
+
         content = response.choices[0].message.content
         self.history.append({"role": "system", "content": content})
         return content
@@ -37,23 +66,70 @@ def main():
     api_key = os.environ.get("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
 
-    agent_1 = Agent(client)
-    agent_2 = Agent(client)
-    agents = [agent_1, agent_2]
+    tool = ChatCompletionToolParam({
+        "type": "function",
+        "name": "respond",
+        "description": "This function is used to create the response of the agent. A response consists of the internal inner thoughts and the response that should be spoken and received by the chat partner",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "inner_thoughts": {
+                    "type": "string",
+                    "description": "The inner thoughts of the agent that the agent has and helped form the response"
+                },
+                "utterance": {
+                    "type": "string",
+                    "description": "The spoken words by the agent that were formed using the inner thoughts"
+                },
+            },
+            "required": [
+                "inner_thoughts",
+                "utterance"
+            ],
+            "additionalProperties": False
+        },
+        "strict": True,
+    })
 
-    # Iterable that switches between 0 and 1 to switch between agent 0 and 1
-    # to switch for each chat turn
-    agent_turn_indices = map(lambda turn_index: turn_index %
-                             len(agents), range(CONVERSATION_TURNS))
+    response = client.responses.create(
+        model=MODEL,
+        input=[
+            {
+                "role": "system",
+                "content": "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues"
+            },
+            {
+                "role": "user",
+                "content": "hey how is it going?"
+            }],
+        tools=[tool]
+    )
 
-    # Ask initial question to get the chat rolling
-    last_message = "How are you doing?"
-    for agent_index in agent_turn_indices:
-        current_agent = agents[agent_index]
-        last_message = current_agent.message(last_message)
-        print(f"[Agent {agent_index + 1}]: {last_message}")
+    tool_call = response.output[0]
+    print("Response", tool_call)
 
-    print("Conversation completed!")
+    return
+
+    #     agent_1 = Agent(
+    #   client, "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues")
+    #    agent_2 = Agent(
+    #    client, "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues")
+    #         agents = [agent_1, agent_2]
+
+    #         # Iterable that switches between 0 and 1 to switch between agent 0 and 1
+    #         # to switch for each chat turn
+    #         agent_turn_indices = map(lambda turn_index: turn_index %
+    #                        len(agents), range(CONVERSATION_TURNS))
+
+    #                         # Ask initial question to get the chat rolling
+    #                         last_message = "How are you doing?"
+    #                          for agent_index in agent_turn_indices:
+    #                          current_agent= agents[agent_index]
+    #                          last_message= current_agent.message(last_message)
+    #                          print(
+    #                              f"[Agent {agent_index + 1}]: {last_message}")
+
+    #                         print("Conversation completed!")
 
 
 if __name__ == "__main__":
