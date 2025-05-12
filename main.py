@@ -2,11 +2,17 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.chat import ChatCompletionToolParam
+from pydantic import BaseModel
 
 AGENT_1_PROMPT = "You are Agent 1, a curious assistant who asks thoughtful questions."
 AGENT_2_PROMPT = "You are Agent 2, a knowledgeable assistant who provides detailed answers."
-MODEL = "gpt-4.1"
+MODEL = "gpt-4o-mini"
 CONVERSATION_TURNS = 20
+
+
+class Response(BaseModel):
+    inner_thoughts: str
+    utterance: str
 
 
 class Agent:
@@ -91,22 +97,21 @@ def main():
         "strict": True,
     })
 
-    response = client.responses.create(
+    response = client.responses.parse(
         model=MODEL,
         input=[
             {
                 "role": "system",
-                "content": "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues"
+                "content": "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues. When you answer use your inner thoughts and what you speak in the utterance. The utterance is what your chat partner can see. Your inner thoughts are only visible to you."
             },
             {
                 "role": "user",
                 "content": "hey how is it going?"
             }],
-        tools=[tool]
+        text_format=Response
     )
 
-    tool_call = response.output[0]
-    print("Response", tool_call)
+    print("Response", response.output_parsed.inner_thoughts)
 
     return
 
