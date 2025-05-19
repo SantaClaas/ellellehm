@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field
 from openai.types.responses import ResponseInputParam
+import instructor
 
 MODEL = "gpt-4o-mini"
 CONVERSATION_TURNS = 20
@@ -16,10 +17,10 @@ class Response(BaseModel):
 
 
 class Agent:
-    client: OpenAI
+    client: any
     history: ResponseInputParam
 
-    def __init__(self, client: OpenAI, message: str):
+    def __init__(self, client: any, message: str):
         self.client = client
         # Instruct the character
         self.history = [
@@ -32,16 +33,16 @@ class Agent:
     def message(self, message: str) -> tuple[str, str]:
         self.history.append({"role": "user", "content": message})
 
-        response = self.client.responses.parse(
+        response = self.client.chat.completions.create(
             model=MODEL,
-            input=self.history,
-            text_format=Response
+            messages=self.history,
+            response_model=Response
         )
 
-        content = response.output_parsed.utterance
+        content = response.utterance
         self.history.append(
             {"role": "system", "content": content})
-        return (content, response.output_parsed.inner_thoughts)
+        return (content, response.inner_thoughts)
 
 
 def main():
@@ -50,6 +51,7 @@ def main():
 
     api_key = os.environ.get("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
+    client = instructor.from_openai(client)
 
     system_prompt = "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues."
 
