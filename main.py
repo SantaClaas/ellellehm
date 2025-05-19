@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field
+from openai.types.responses import ResponseInputParam
 
 AGENT_1_PROMPT = "You are Agent 1, a curious assistant who asks thoughtful questions."
 AGENT_2_PROMPT = "You are Agent 2, a knowledgeable assistant who provides detailed answers."
@@ -17,6 +18,9 @@ class Response(BaseModel):
 
 
 class Agent:
+    client: OpenAI
+    history: ResponseInputParam
+
     def __init__(self, client: OpenAI, message: str):
         self.client = client
         # Instruct the character
@@ -48,24 +52,8 @@ def main():
     api_key = os.environ.get("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
 
-    response = client.responses.parse(
-        model=MODEL,
-        input=[
-            {
-                "role": "system",
-                "content": "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues. When you answer use your inner thoughts and what you speak in the utterance. The utterance is what your chat partner can see. Your inner thoughts are only visible to you."
-            },
-            {
-                "role": "user",
-                "content": "hey how is it going?"
-            }],
-        text_format=Response
-    )
-
-    print("[Response utterance]:\t", response.output_parsed.utterance)
-    print("[Inner thought]:\t", response.output_parsed.inner_thoughts)
-
     system_prompt = "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues. When you answer use your inner thoughts and what you speak in the utterance. The utterance is what your chat partner can see. Your inner thoughts are only visible to you."
+
     agent_1 = Agent(
         client, system_prompt)
     agent_2 = Agent(
