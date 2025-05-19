@@ -1,8 +1,7 @@
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-from openai.types.chat import ChatCompletionToolParam
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 AGENT_1_PROMPT = "You are Agent 1, a curious assistant who asks thoughtful questions."
 AGENT_2_PROMPT = "You are Agent 2, a knowledgeable assistant who provides detailed answers."
@@ -11,8 +10,10 @@ CONVERSATION_TURNS = 20
 
 
 class Response(BaseModel):
-    inner_thoughts: str
-    utterance: str
+    inner_thoughts: str = Field(
+        description="Your inner thoughts before forming the answer you respond with in utterance. This will not be visible to anyone else than you.")
+    utterance: str = Field(
+        description="The response that you say after forming your thoughts from inner thoughts. This wil lbe spoken to the chat partner.")
 
 
 class Agent:
@@ -29,40 +30,15 @@ class Agent:
     def message(self, message: str) -> str:
         self.history.append({"role": "user", "content": message})
 
-        tool = ChatCompletionToolParam({
-            "type": "function",
-            "function": {
-                "name": "respond",
-                "description": "This function is used to create the response of the agent. A response consists of the internal inner thoughts and the response that should be spoken and received by the chat partner",
-                "parameters": {
-                    "properties": {
-                        "inner_thoughts": {
-                            "type": "string",
-                            "description": "The inner thoughts of the agent that the agent has and helped form the response"
-                        },
-                        "utterance": {
-                            "type": "string",
-                            "description": "The spoken words by the agent that were formed using the inner thoughts"
-                        },
-                    },
-                    "required": [
-                        "inner_thoguhts",
-                        "utterance"
-                    ],
-                    "additionalProperties": False
-                },
-                "strict": True,
-            },
-        })
-        response = self.client.chat.completions.create(
+        response = self.client.responses.parse(
             model=MODEL,
-            messages=self.history,
-            tools=[tool]
+            input=self.history,
+            text_format=Response
         )
 
-        content = response.choices[0].message.content
-        self.history.append({"role": "system", "content": content})
-        return content
+        self.history.append(
+            {"role": "system", "content": response.output_parsed.utterance})
+        return response.output_parsed.utterance
 
 
 def main():
@@ -71,31 +47,6 @@ def main():
 
     api_key = os.environ.get("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
-
-    tool = ChatCompletionToolParam({
-        "type": "function",
-        "name": "respond",
-        "description": "This function is used to create the response of the agent. A response consists of the internal inner thoughts and the response that should be spoken and received by the chat partner",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "inner_thoughts": {
-                    "type": "string",
-                    "description": "The inner thoughts of the agent that the agent has and helped form the response"
-                },
-                "utterance": {
-                    "type": "string",
-                    "description": "The spoken words by the agent that were formed using the inner thoughts"
-                },
-            },
-            "required": [
-                "inner_thoughts",
-                "utterance"
-            ],
-            "additionalProperties": False
-        },
-        "strict": True,
-    })
 
     response = client.responses.parse(
         model=MODEL,
@@ -111,30 +62,30 @@ def main():
         text_format=Response
     )
 
-    print("Response", response.output_parsed.inner_thoughts)
+    print("[Response utterance]:\t", response.output_parsed.utterance)
+    print("[Inner thought]:\t", response.output_parsed.inner_thoughts)
 
-    return
+    system_prompt = "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues. When you answer use your inner thoughts and what you speak in the utterance. The utterance is what your chat partner can see. Your inner thoughts are only visible to you."
+    agent_1 = Agent(
+        client, system_prompt)
+    agent_2 = Agent(
+        client, system_prompt)
+    agents = [agent_1, agent_2]
 
-    #     agent_1 = Agent(
-    #   client, "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues")
-    #    agent_2 = Agent(
-    #    client, "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues")
-    #         agents = [agent_1, agent_2]
+    # Iterable that switches between 0 and 1 to switch between agent 0 and 1
+    # to switch for each chat turn
+    agent_turn_indices = map(lambda turn_index: turn_index %
+                             len(agents), range(CONVERSATION_TURNS))
 
-    #         # Iterable that switches between 0 and 1 to switch between agent 0 and 1
-    #         # to switch for each chat turn
-    #         agent_turn_indices = map(lambda turn_index: turn_index %
-    #                        len(agents), range(CONVERSATION_TURNS))
+    # Ask initial question to get the chat rolling
+    last_message = "How are you doing?"
+    for agent_index in agent_turn_indices:
+        current_agent = agents[agent_index]
+        last_message = current_agent.message(last_message)
+        print(
+            f"[Agent {agent_index + 1}]: {last_message}")
 
-    #                         # Ask initial question to get the chat rolling
-    #                         last_message = "How are you doing?"
-    #                          for agent_index in agent_turn_indices:
-    #                          current_agent= agents[agent_index]
-    #                          last_message= current_agent.message(last_message)
-    #                          print(
-    #                              f"[Agent {agent_index + 1}]: {last_message}")
-
-    #                         print("Conversation completed!")
+    print("Conversation completed!")
 
 
 if __name__ == "__main__":
