@@ -4,8 +4,6 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 from openai.types.responses import ResponseInputParam
 
-AGENT_1_PROMPT = "You are Agent 1, a curious assistant who asks thoughtful questions."
-AGENT_2_PROMPT = "You are Agent 2, a knowledgeable assistant who provides detailed answers."
 MODEL = "gpt-4o-mini"
 CONVERSATION_TURNS = 20
 
@@ -31,7 +29,7 @@ class Agent:
             },
         ]
 
-    def message(self, message: str) -> str:
+    def message(self, message: str) -> tuple[str, str]:
         self.history.append({"role": "user", "content": message})
 
         response = self.client.responses.parse(
@@ -42,7 +40,7 @@ class Agent:
 
         self.history.append(
             {"role": "system", "content": response.output_parsed.utterance})
-        return response.output_parsed.utterance
+        return (response.output_parsed.utterance, response.output_parsed.inner_thoughts)
 
 
 def main():
@@ -52,7 +50,7 @@ def main():
     api_key = os.environ.get("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
 
-    system_prompt = "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues. When you answer use your inner thoughts and what you speak in the utterance. The utterance is what your chat partner can see. Your inner thoughts are only visible to you."
+    system_prompt = "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues."
 
     agent_1 = Agent(
         client, system_prompt)
@@ -69,7 +67,8 @@ def main():
     last_message = "How are you doing?"
     for agent_index in agent_turn_indices:
         current_agent = agents[agent_index]
-        last_message = current_agent.message(last_message)
+        (last_message, inner_thoughts) = current_agent.message(last_message)
+        print(f"\n[Agent {agent_index + 1} inner thoughts]: {inner_thoughts}")
         print(
             f"[Agent {agent_index + 1}]: {last_message}")
 
