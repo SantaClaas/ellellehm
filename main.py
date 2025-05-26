@@ -8,6 +8,15 @@ MODEL = "gpt-4o-mini"
 CONVERSATION_TURNS = 20
 
 
+class RoleSeed(BaseModel):
+    role_1_description: str = Field(
+        description="The description of the first role. The role has opposing interest to the second role.")
+    role_2_description: str = Field(
+        description="The description of the second role. The role has opposing interests to the first role")
+    role_1_initial_message: str = Field(
+        "The initial message role 1 should start the conversation with")
+
+
 class Response(BaseModel):
     inner_thoughts: str = Field(
         description="Your inner thoughts before forming the answer you respond with in utterance. This will not be visible to anyone else than you.")
@@ -19,7 +28,7 @@ class Agent:
     client: OpenAI
     history: ResponseInputParam
 
-    def __init__(self, client: OpenAI, message: str):
+    def __init__(self, client: OpenAI, message: str, initial_message: str | None = None):
         self.client = client
         # Instruct the character
         self.history = [
@@ -28,6 +37,8 @@ class Agent:
                 "content": message
             },
         ]
+        if initial_message != None:
+            self.history.append({"role": "user", "content": initial_message})
 
     def message(self, message: str) -> tuple[str, str]:
         self.history.append({"role": "user", "content": message})
@@ -51,12 +62,23 @@ def main():
     api_key = os.environ.get("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
 
-    system_prompt = "You are a helpful and curious assistant. Answer short and with a question so that the conversation continues."
+    response = client.responses.parse(
+        model=MODEL,
+        input=[{"role": "user", "content": "Create two role instructions for two opposing that have conflicting interests in an awkward confrontation. The descriptions are handed to actors to act out the roles in an improvised conversation. The opposing interests should create a funny ongoing conversation. Write it in a way that each role is aware of the other without revealing too much detail."}],
+        text_format=RoleSeed,
+    )
+
+    role_1 = response.output_parsed.role_1_description
+    role_1_initial = response.output_parsed.role_1_initial_message
+    role_2 = response.output_parsed.role_2_description
+
+    print(f"Role 1: {role_1}")
+    print(f"Role 2: {role_2}")
 
     agent_1 = Agent(
-        client, system_prompt)
+        client, role_1, role_1_initial)
     agent_2 = Agent(
-        client, system_prompt)
+        client, role_2)
     agents = [agent_1, agent_2]
 
     # Iterable that switches between 0 and 1 to switch between agent 0 and 1
@@ -65,7 +87,8 @@ def main():
                              len(agents), range(CONVERSATION_TURNS))
 
     # Ask initial question to get the chat rolling
-    last_message = "How are you doing?"
+    last_message = role_1_initial
+    print(f"[Agent 1 Initial Message]:\t{last_message}")
     for agent_index in agent_turn_indices:
         current_agent = agents[agent_index]
         (last_message, inner_thoughts) = current_agent.message(last_message)
