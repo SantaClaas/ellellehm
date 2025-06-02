@@ -18,8 +18,8 @@ class RoleSeed(BaseModel):
 
 
 class Response(BaseModel):
-    inner_thoughts: str = Field(
-        description="Your inner thoughts before forming the answer you respond with in utterance. This will not be visible to anyone else than you.")
+    # inner_thoughts: str = Field(
+    #     description="Your inner thoughts before forming the answer you respond with in utterance. This will not be visible to anyone else than you.")
     utterance: str = Field(
         description="The response that you say after forming your thoughts from inner thoughts. This wil lbe spoken to the chat partner.")
 
@@ -52,7 +52,8 @@ class Agent:
         content = response.output_parsed.utterance
         self.history.append(
             {"role": "system", "content": content})
-        return (content, response.output_parsed.inner_thoughts)
+        # return (content, response.output_parsed.inner_thoughts)
+        return (content, "")
 
 
 def main():
@@ -64,7 +65,7 @@ def main():
 
     response = client.responses.parse(
         model=MODEL,
-        input=[{"role": "user", "content": "Create two role instructions for two opposing that have conflicting interests in an awkward confrontation. The descriptions are handed to actors to act out the roles in an improvised conversation. The opposing interests should create a funny ongoing conversation. Write it in a way that each role is aware of the other without revealing too much detail."}],
+        input=[{"role": "user", "content": "Create two role instructions for two opposing that have conflicting interests in an awkward confrontation. The descriptions are handed to actors to act out the roles in an improvised conversation. The opposing interests should create a funny ongoing conversation. Write it in a way that each role is aware of the other without revealing too much detail. One of the roles tries to manipulate and cheat the other. Instruct each role to be short and concise."}],
         text_format=RoleSeed,
     )
 
@@ -92,9 +93,9 @@ def main():
     for agent_index in agent_turn_indices:
         current_agent = agents[agent_index]
         (last_message, inner_thoughts) = current_agent.message(last_message)
-        print(f"\n[Agent {agent_index + 1} inner thoughts]: {inner_thoughts}")
+        # print(f"\n[Agent {agent_index + 1} inner thoughts]: {inner_thoughts}")
         print(
-            f"[Agent {agent_index + 1}]: {last_message}")
+            f"\n[Agent {agent_index + 1}]: {last_message}")
 
     print("Conversation completed!")
 

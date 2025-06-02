@@ -33,12 +33,13 @@ class Agent:
     def message(self, message: str) -> tuple[str, str]:
         self.history.append({"role": "user", "content": message})
 
-        response = self.client.chat.completions.create(
+        response, completion = self.client.chat.completions.create_with_completion(
             model=MODEL,
             messages=self.history,
-            response_model=Response
+            response_model=Response,
         )
 
+        print("Token usage", completion.usage.total_tokens)
         content = response.utterance
         self.history.append(
             {"role": "system", "content": content})
