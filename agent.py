@@ -1,11 +1,23 @@
 
+import random
 from sqlite3 import Connection
+import typing
 from openai import OpenAI
 from openai.types.responses import ResponseInputParam
 from pydantic import BaseModel, Field
 
 from constants import MODEL
 import database
+
+type OpenAiTextToSpeechVoices = typing.Literal['alloy', 'ash',
+                                               'coral', 'echo', 'fable', 'onyx', 'nova', 'sage', 'shimmer']
+
+
+voice_options = list(typing.get_args(
+    # Duplicating type because get_args does not work with type alias of OpenAiTextToSpeechVoices and Idl anymore
+    typing.Literal['alloy', 'ash', 'coral', 'echo', 'fable', 'onyx', 'nova', 'sage', 'shimmer']))
+print("VOICE OPTIONS", voice_options)
+random.shuffle(voice_options)
 
 
 class Response(BaseModel):
@@ -19,16 +31,25 @@ class Agent:
     client: OpenAI
     history: ResponseInputParam
     connection: Connection
+    role_description: str
+    text_to_speech_voice: OpenAiTextToSpeechVoices
 
-    def __init__(self, client: OpenAI, connection: Connection, message: str, initial_message: str | None = None):
-        assert isinstance(message, str)
+    def __init__(self, client: OpenAI, connection: Connection, role_description: str, initial_message: str | None = None):
+        assert isinstance(role_description, str)
         self.client = client
         self.connection = connection
+        self.role_description = role_description
+
+        if len(voice_options) == 0:
+            raise "All voices for the conversation have been taken. There is no more voice available to differentiate agents in the conversation"
+
+        self.text_to_speech_voice = voice_options.pop()
+
         # Instruct the character
         self.history = [
             {
                 "role": "system",
-                "content": message
+                "content": role_description
             },
         ]
         if initial_message != None:
