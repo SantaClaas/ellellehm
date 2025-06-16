@@ -2,8 +2,10 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field
+
 from agent import Agent
 from constants import CONVERSATION_TURNS, MODEL
+import database
 
 
 class RoleSeed(BaseModel):
@@ -22,11 +24,16 @@ def main():
     api_key = os.environ.get("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
 
+    connection = database.initialize()
+
     response = client.responses.parse(
         model=MODEL,
         input=[{"role": "user", "content": "Create two role instructions for two opposing that have conflicting interests in an awkward confrontation. The descriptions are handed to actors to act out the roles in an improvised conversation. The opposing interests should create a funny ongoing conversation. Write it in a way that each role is aware of the other without revealing too much detail. One of the roles tries to manipulate and cheat the other. Instruct each role to be short and concise."}],
         text_format=RoleSeed,
     )
+
+    database.create_usage(
+        connection, response.usage.input_tokens, response.usage.output_tokens)
 
     role_1 = response.output_parsed.role_1_description
     role_1_initial = response.output_parsed.role_1_initial_message
@@ -36,9 +43,9 @@ def main():
     print(f"Role 2: {role_2}")
 
     agent_1 = Agent(
-        client, role_1, role_1_initial)
+        client, connection, role_1, role_1_initial)
     agent_2 = Agent(
-        client, role_2)
+        client, connection, role_2)
     agents = [agent_1, agent_2]
 
     # Iterable that switches between 0 and 1 to switch between agent 0 and 1
@@ -52,7 +59,7 @@ def main():
     for agent_index in agent_turn_indices:
         current_agent = agents[agent_index]
         (last_message, inner_thoughts) = current_agent.message(last_message)
-        # print(f"\n[Agent {agent_index + 1} inner thoughts]: {inner_thoughts}")
+        print(f"\n[Agent {agent_index + 1} inner thoughts]: {inner_thoughts}")
         print(
             f"\n[Agent {agent_index + 1}]: {last_message}")
 
